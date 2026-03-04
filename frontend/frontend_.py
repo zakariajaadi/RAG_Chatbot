@@ -1,5 +1,5 @@
 """
-Gradio frontend — chat interface for the RAG with memory.
+Gradio frontend — chat interface for the RAG.
 
 Run:
     python frontend.py
@@ -8,22 +8,18 @@ Requires the backend to be running on http://localhost:8000
 """
 
 import json
-import uuid
 import gradio as gr
 import requests
 
 
-BACKEND_URL = "http://localhost:8000/rag-memory/stream"
+BACKEND_URL = "http://localhost:8000/rag/stream"
 
 
-def predict(message: str, history: list, session_id: str):
+def predict(message: str, history: list):
     """Stream the RAG response token by token."""
     with requests.post(
         BACKEND_URL,
-        json={
-            "input": {"question": message},
-            "config": {"configurable": {"session_id": session_id}},
-        },
+        json={"input": message},
         stream=True,
         headers={"Accept": "text/event-stream"},
     ) as response:
@@ -49,6 +45,7 @@ def predict(message: str, history: list, session_id: str):
             except json.JSONDecodeError:
                 continue
 
+            # LangServe format: {"ops": [{"op": "add", "path": "/streamed_output/-", "value": "..."}]}
             if isinstance(data, dict):
                 for op in data.get("ops", []):
                     if op.get("op") == "add" and op.get("path") == "/streamed_output/-":
@@ -56,6 +53,7 @@ def predict(message: str, history: list, session_id: str):
                         if isinstance(value, str):
                             partial += value
                             yield partial
+            # Fallback: data is directly the token string
             elif isinstance(data, str):
                 partial += data
                 yield partial
@@ -63,17 +61,14 @@ def predict(message: str, history: list, session_id: str):
 
 with gr.Blocks(title="RAG Assistant") as demo:
     gr.Markdown("## 💬 RAG Assistant")
-
-    # session_id unique per Gradio session — invisible for user
-    session_id = gr.State(value=lambda: str(uuid.uuid4()))
+    gr.Markdown("Posez vos questions sur les documents indexés.")
 
     gr.ChatInterface(
         fn=predict,
-        additional_inputs=[session_id],
         examples=[
-                    ["Quand on va en prison dans le jeu."],
-                    ["Quand on fait faillite dans le jeu ?"],
-                 ],
+            "Quand on va en prison dans le jeu.",
+            "Quend on fait faillite dans le jeu ?",
+        ],
         cache_examples=False,
     )
 

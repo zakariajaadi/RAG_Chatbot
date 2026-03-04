@@ -54,6 +54,8 @@ class DatabaseConfig:
         # Final url for SQLAlchemy
         db_path = self.db_dir / self.db_name
         self.db_url = f"sqlite:///{db_path}"
+        self.db_url_async = f"sqlite+aiosqlite:///{db_path}" # for history
+
 
 @dataclass
 class RAGConfig:

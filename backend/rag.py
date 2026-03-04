@@ -1,129 +1,60 @@
-import os
+"""
+rag.py
+
+RAG pipeline entry point. Thin orchestration class that delegates
+chain construction to dedicated modules.
+
+Two modes:
+  - Stateless (default): each query is independent, no history
+  - Stateful:            persistent memory per session_id,
+                         question is condensed before retrieval
+
+"""
+
 from typing import List
-from pathlib import Path
 
 from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.retrievers import BaseRetriever
+from langchain_core.runnables import Runnable
 
-from vector_store_manager import VectorStoreManager
+from config import RAGConfig
 from embedding import get_embedding_model
-from retriever import get_retriever
-
-from langchain_core.retrievers import BaseRetriever
-
-from config import RAGConfig, read_config
 from llm import get_llm_model
-
-
+from retriever import get_retriever
+from vector_store_manager import VectorStoreManager
+from chains.rag_basic import rag_basic_chain
+from chains.rag_with_history import rag_with_history_chain
 
 
 class RAG:
     """
-    RAG with reranking.
-    """
-
-    SYSTEM_PROMPT ="""
-    You are a professional document analysis assistant. Your role is to provide accurate, concise responses based strictly on the provided context documents.
-
-    CORE INSTRUCTIONS:
-    - Respond only in the same language as the user's question
-    - Use a professional, detailed writing style
-    - Base responses exclusively on the provided context
-    - Do not generate information not found in the context
-    - Clearly distinguish between factual information and hypothetical scenarios
-
-    RESPONSE GUIDELINES:
-    1. If context is provided: Analyze and synthesize relevant information from the documents
-    2. If no context is provided: Inform the user that context is required for an accurate response
-    3. If asked for general knowledge: Request explicit permission before providing general information
-    4. If the question is unclear: Ask for clarification or rephrasing
-
-    CONTEXT VALIDATION:
-    - Only use information directly supported by the provided documents
-    - Ignore irrelevant or off-topic information
-    - If the context doesn't contain sufficient information to answer the question, state this clearly
-
-    Context Documents:
-    {context}
-
-    User Question:
-    {question}
-
-    Please provide your response following the above guidelines.
+    - RAG pipeline with reranking and optional persistent memory.
+    - Self-contained: builds its own vector store and retriever from config.
+    - Chains are built lazily — only when get_chain() is called.
     """
 
     def __init__(self, config: RAGConfig):
-        
+        self.config = config
+        self.llm    = get_llm_model(config)
 
-        self.config    = config
-        self._prompt   = ChatPromptTemplate.from_template(self.SYSTEM_PROMPT)
-        self._llm      = get_llm_model(config)
         vsm = VectorStoreManager(
             embedding_model=get_embedding_model(config),
             persist_directory=config.vector_store.persist_directory,
         )
         self.retriever = get_retriever(config, vsm)
-        self._chain    = self._build_chain()
 
+    def get_chain(self, memory: bool = False) -> Runnable:
+        """
+        Returns the appropriate chain based on the memory flag.
 
-    def query(self, question: str) -> str:
-        """query rag with a question"""
-        return self._chain.invoke(question)
-
-    def stream(self, question: str):
-        """Stream response."""
-        return self._chain.stream(question)
+        Args:
+            memory: If False (default), returns a stateless chain (str → str).
+                    If True, returns a stateful chain with persistent memory
+                    ({question: str} → str), requires session_id at invoke time.
+        """
+        if memory:
+            return rag_with_history_chain(self.config, self.llm, self.retriever)
+        return rag_basic_chain(self.llm, self.retriever)
 
     def get_relevant_documents(self, question: str) -> List[Document]:
-        """
-        Retrieve and rerank documents relevant to the given question.
-        
-        Useful for debugging retrieval quality, displaying sources to the user,
-        or evaluating the pipeline without consuming LLM tokens.
-        """
+        """Retrieve and rerank documents. Useful for debugging without LLM tokens."""
         return self.retriever.invoke(question)
-    
-    def get_chain(self):
-        return self._chain
-
-    # Helpers 
-
-    @staticmethod
-    def _format_context(docs: List[Document]) -> str:
-        return "\n\n".join(
-            [f"[Source {i+1}]\n{doc.page_content}" for i, doc in enumerate(docs)]
-        )
-
-    def _build_chain(self):
-        return (
-            {
-                "context":  self.retriever | self._format_context,
-                "question": RunnablePassthrough(),
-            }
-            | self._prompt
-            | self._llm
-            | StrOutputParser()
-        )
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

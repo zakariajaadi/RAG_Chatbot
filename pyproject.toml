@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiosqlite>=0.22.1",
     "cohere>=5.20.7",
     "dotenv>=0.9.9",
     "faiss-cpu>=1.13.2",
