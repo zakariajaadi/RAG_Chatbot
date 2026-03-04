@@ -1,5 +1,6 @@
 import os
 from typing import List
+from pathlib import Path
 
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
@@ -7,9 +8,13 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.retrievers import BaseRetriever
 
+from vector_store_manager import VectorStoreManager
+from embedding import get_embedding_model
+from retriever import get_retriever
+
 from langchain_core.retrievers import BaseRetriever
 
-from config import RAGConfig
+from config import RAGConfig, read_config
 from llm import get_llm_model
 
 
@@ -50,16 +55,18 @@ class RAG:
     Please provide your response following the above guidelines.
     """
 
-    def __init__(self, config: RAGConfig, retriever: BaseRetriever):
-        self.config   = config
-        self._prompt  = ChatPromptTemplate.from_template(self.SYSTEM_PROMPT)
-        self._llm     = get_llm_model(config)
-
-        # Store the reranked retriever
-        self.retriever = retriever
+    def __init__(self, config: RAGConfig):
         
-        # Build the execution chain
-        self._chain   = self._build_chain()
+
+        self.config    = config
+        self._prompt   = ChatPromptTemplate.from_template(self.SYSTEM_PROMPT)
+        self._llm      = get_llm_model(config)
+        vsm = VectorStoreManager(
+            embedding_model=get_embedding_model(config),
+            persist_directory=config.vector_store.persist_directory,
+        )
+        self.retriever = get_retriever(config, vsm)
+        self._chain    = self._build_chain()
 
 
     def query(self, question: str) -> str:
@@ -78,6 +85,9 @@ class RAG:
         or evaluating the pipeline without consuming LLM tokens.
         """
         return self.retriever.invoke(question)
+    
+    def get_chain(self):
+        return self._chain
 
     # Helpers 
 

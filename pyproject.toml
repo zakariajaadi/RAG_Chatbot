@@ -8,6 +8,8 @@ dependencies = [
     "cohere>=5.20.7",
     "dotenv>=0.9.9",
     "faiss-cpu>=1.13.2",
+    "fastapi>=0.135.1",
+    "gradio>=6.8.0",
     "langchain>=1.2.10",
     "langchain-chroma>=1.1.0",
     "langchain-cohere>=0.5.0",
@@ -15,6 +17,8 @@ dependencies = [
     "langchain-google-genai>=4.2.1",
     "langchain-openai>=1.1.10",
     "langchain-text-splitters>=1.1.1",
+    "langserve[all]>=0.3.3",
     "omegaconf>=2.3.0",
     "pypdf>=6.7.3",
+    "uvicorn>=0.41.0",
 ]

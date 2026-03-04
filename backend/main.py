@@ -1,51 +1,54 @@
+"""
+LangServe server — expose the RAG chain via HTTP.
+
+Endpoints générés automatiquement :
+  POST /rag/invoke       → réponse complète (str)
+  POST /rag/stream       → streaming SSE
+  POST /rag/batch        → plusieurs questions en parallèle
+  GET  /rag/playground   → UI interactive LangServe
+  GET  /docs             → Swagger UI
+"""
+
+import logging
+import warnings
+
+import uvicorn
+from fastapi import FastAPI
+from langserve import add_routes
+
 from config import read_config
 from embedding import get_embedding_model
 from vector_store_manager import VectorStoreManager
-from retriever import get_retriever 
-import logging
+from retriever import get_retriever
 from rag import RAG
-import warnings
 
 logging.basicConfig(level=logging.INFO)
-
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
+# Initialize RAG
 
 
+config    = read_config()
+rag       = RAG(config)
+chain     = rag.get_chain()  
+
+# FastAPI + LangServe
+
+app = FastAPI(
+    title="RAG API",
+    description="RAG served via LangServe",
+    version="1.0.0",
+)
+
+add_routes(app, chain, path="/rag", input_type=str)
 
 
-import logging
-from vector_store_manager import VectorStoreManager
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
-
-def main():
-    # 1. Initialisation de la configuration et du logging
-    config = read_config()    
-
-    # 2. Initialisation du Store (Gestion du stockage)
-    vsm = VectorStoreManager(
-        embedding_model=get_embedding_model(config), 
-        persist_directory=config.vector_store.persist_directory
-    )
-
-    # 3. Get retriever, vectore sotre index is load here (lazy loading)
-    retriever = get_retriever(config, vsm)
-
-    # Inject retriever in RAG
-    rag_chain = RAG(config, retriever)
-
-    # 6. Exécution d'une requête
-    question = "c'est quoi une crise de bâtiment dans le monopoly ?"
-    print(f"\nQuestion: {question}\n")
-    
-
-    #relevant_docs= rag_chain.get_relevant_documents(question)
-    
-    #print(f"Réponse :\n{relevant_docs[0]}")
-
-    response = rag_chain.query(question)
-    print(f"Réponse :\n{response}")
+# Entry-point
 
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

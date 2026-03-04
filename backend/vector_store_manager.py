@@ -17,9 +17,8 @@ class VectorStoreManager:
 
     def get_store(self) -> Chroma:
         """
-        Returns the vector store instance. 
+        Returns the vector store instance from t
         If it's not loaded, it initializes it (creating the directory if needed).
-        This is what the Indexer calls.
         """
         if self.vectorstore is None:
             self.vectorstore = Chroma(
