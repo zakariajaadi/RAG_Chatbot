@@ -12,6 +12,7 @@ wheels/
 # Folders
 data/
 content/
+examples/
 
 # Environment variables
 .env

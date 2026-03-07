@@ -11,11 +11,16 @@ LLM:
     temperature: 0.1
     streaming: false
 
+#EmbeddingModel:
+#  source: GoogleGenerativeAIEmbeddings
+#  source_config:
+#    model: gemini-embedding-001
+#    task_type: RETRIEVAL_DOCUMENT
+
 EmbeddingModel:
-  source: GoogleGenerativeAIEmbeddings
+  source: HuggingFaceEmbeddings
   source_config:
-    model: models/gemini-embedding-001
-    task_type: RETRIEVAL_DOCUMENT
+    model_name: BAAI/bge-base-en-v1.5
 
 RerankerModel: 
   source: CohereRerank

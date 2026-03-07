@@ -116,7 +116,7 @@ class Indexer:
 if __name__ == "__main__":
 
     base_dir = Path(__file__).resolve().parents[1]
-    dir_path = base_dir / "content" 
+    dir_path = base_dir / "examples" 
 
     config = read_config()
 
