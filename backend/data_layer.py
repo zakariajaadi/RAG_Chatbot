@@ -192,7 +192,7 @@ class DBDataLayer(BaseDataLayer):
             "userId": row[2],
             "metadata": json.loads(row[3]),
             "createdAt": row[4],
-            "userIdentifier": row[5],  # <--- CRITICAL: Chainlit needs this for security checks
+            "userIdentifier": row[5], 
             "steps": [
                 {
                     "id": s[0],
@@ -223,15 +223,12 @@ class DBDataLayer(BaseDataLayer):
     async def list_threads(
         self, pagination: any, filters: ThreadFilter
     ) -> PaginatedResponse[ThreadDict]:
-        print(f"list_threads called with userId: {filters.userId}")
         with Database(self.db_url) as db:
             rows = db.fetchall(
                 "SELECT id, name, user_id, metadata, created_at FROM cl_threads WHERE user_id = ? ORDER BY created_at DESC",
                 (filters.userId,),
             )
         
-        print(f"Found {len(rows)} threads")
-
         threads = [
             {
                 "id": r[0],

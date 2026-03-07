@@ -1,4 +1,4 @@
-from typing import List
+from loguru import logger 
 from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
 
@@ -30,7 +30,7 @@ class VectorStoreManager:
     def load(self) -> "VectorStoreManager":
         """Load an existing Chroma index."""
         self.get_store()
-        print(f"Index loaded from {self.persist_directory}")
+        logger.info(f"Index loaded from {self.persist_directory}")
         return self
 
     def as_retriever(self, k: int = 4):

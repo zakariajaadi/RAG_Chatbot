@@ -13,8 +13,7 @@ Usage:
 """
 
 import sqlite3
-import logging
-from logging import Logger
+from loguru import logger
 from pathlib import Path
 from typing import Any, Optional
 
@@ -48,14 +47,12 @@ class Database:
 
     }
 
-    def __init__(self, db_url: str, logger: Optional[Logger] = None):
+    def __init__(self, db_url: str):
         
         
         # Store db url
         self.db_url = db_url
-        
-        self.logger = logger or logging.getLogger(__name__)
-        
+                
         # Parse URL into a structured object, exposes drivername, host, port, database as attributes 
         # e.g. self.url.drivername, self.url.host
         self.url    = make_url(db_url)
@@ -94,7 +91,7 @@ class Database:
         """
         if self.conn:
             if exc_type:
-                self.logger.error(
+                logger.error(
                     "Transaction failed", exc_info=(exc_type, exc_value, traceback)
                 )
                 self.conn.rollback()  # error → undo all operations in the block
@@ -122,7 +119,7 @@ class Database:
             return cursor
         except Exception as e:
             cursor.close()
-            self.logger.exception("Query execution failed", exc_info=e)
+            logger.exception("Query execution failed", exc_info=e)
             raise
 
     def fetchone(self, query: str, params: Optional[tuple] = None) -> Optional[tuple]:
@@ -167,9 +164,9 @@ class Database:
             # Execute each statement individually (sqlglot splits on ";")
             for statement in transpiled:
                 self.execute(statement)
-            self.logger.info(f"Script {path.name} executed successfully.")
+            logger.info(f"Script {path.name} executed successfully.")
         except Exception as e:
-            self.logger.exception(f"Failed to execute script {path}", exc_info=e)
+            logger.exception(f"Failed to execute script {path}", exc_info=e)
             raise
 
     # ------------------------------------------------------------------ #
