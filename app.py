@@ -10,15 +10,16 @@ Features:
     - Streaming responses token by token
     - Conversation memory via RunnableWithMessageHistory
 """
-
 import sys
 from pathlib import Path
+# Permet aux modules backend/ de s'importer entre eux sans préfixe
+sys.path.insert(0, str(Path(__file__).parent / "backend"))
 from typing import Optional
 
 import chainlit as cl
 from chainlit.data.base import BaseDataLayer
 
-from config import read_config
+from backend.config import read_config
 from backend.rag import RAG
 from backend.data_layer import DBDataLayer
 from backend.routers.auth.user_management import authenticate_user
@@ -75,9 +76,10 @@ async def resume(thread):
     cl.user_session.set("session_id", thread["id"])
 
 
+"""
 @cl.on_message
 async def main(message: cl.Message):
-    """Called on every user message."""
+    "Called on every user message."
     session_id = cl.user_session.get("session_id")
 
     # Create empty message to stream into
@@ -91,3 +93,59 @@ async def main(message: cl.Message):
         await msg.stream_token(chunk)
 
     await msg.update()
+"""
+
+import asyncio
+
+@cl.on_message
+async def main(message: cl.Message):
+    
+    session_id = cl.user_session.get("session_id")
+    
+    # Create empty message to stream into
+    msg = cl.Message(content="")
+    await msg.send()
+
+    # Fetch source documents in parallel with streaming to avoid added latency
+    docs_task = asyncio.create_task(
+        asyncio.to_thread(rag.get_relevant_documents, message.content)
+    )
+
+    # Stream response tokens as they arrive
+    async for chunk in chain.astream(
+        {"question": message.content},
+        config={"configurable": {"session_id": session_id}},
+    ):
+        await msg.stream_token(chunk)
+
+    # Extract unique source file names from retrieved documents
+    docs = await docs_task
+    sources = list({
+        doc.metadata.get("source_file") for doc in docs 
+        if doc.metadata.get("source_file")
+    })
+
+    if sources:
+        # Build side panel elements with actual chunk content per source
+        elements = [
+            cl.Text(
+                name=src,
+                content="\n\n---\n\n".join(
+                    doc.page_content for doc in docs
+                    if doc.metadata.get("source_file") == src
+                ),
+                display="side"
+            )
+            for src in sources
+        ]
+
+        # Format source names as clickable tags
+        source_tags = ", ".join(sources)
+
+        # Append discrete source line at the end of the message
+        msg.content += f"\n\n*Sources : {source_tags}*"
+        msg.elements = elements
+
+    # Single update at the end
+    await msg.update()
+

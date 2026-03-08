@@ -1,7 +1,5 @@
 """
-data_layer.py
-
-Custom Chainlit data layer backed by SQLite (via our Database class).
+Custom Chainlit data layer backed by a Database (via Database class).
 Implements the BaseDataLayer interface so Chainlit can persist:
   - Users
   - Conversations (threads)

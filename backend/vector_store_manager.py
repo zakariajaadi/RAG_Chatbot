@@ -2,8 +2,6 @@ from loguru import logger
 from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
 
-import shutil
-import os
 
 class VectorStoreManager:
     """
